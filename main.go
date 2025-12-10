@@ -13,6 +13,7 @@ func main() {
 	var u string
 	var d int
 	var onlyExternal, onlyInternal, h bool
+	var output string
 	flag.StringVar(&u, "u", "", "")
 	flag.StringVar(&u, "url", "", "")
 	flag.IntVar(&d, "d", 3, "")
@@ -21,6 +22,8 @@ func main() {
 	flag.BoolVar(&onlyExternal, "ext", false, "")
 	flag.BoolVar(&onlyInternal, "i", false, "")
 	flag.BoolVar(&onlyInternal, "int", false, "")
+	flag.StringVar(&output, "o", "", "")
+	flag.StringVar(&output, "output", "", "")
 	flag.BoolVar(&h, "h", false, "")
 	flag.BoolVar(&h, "help", false, "")
 
@@ -37,7 +40,7 @@ _____.___.                  _________
 
 	flag.Usage = func() {
 		banner()
-		fmt.Fprintf(os.Stderr, "\nUSAGE: %s [flags]\n\nFLAGS:\n  -u, --url\tTarget URL\n  -d, --depth\tMax recursion (default 3)\n  -e, --ext\tExternal links only\n  -i, --int\tInternal links only\n  -h, --help\tShow help\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nUSAGE: %s [flags]\n\nFLAGS:\n  -u, --url\tTarget URL\n  -d, --depth\tMax recursion (default 3)\n  -e, --ext\tExternal links only\n  -i, --int\tInternal links only\n  -o, --output\tOutput file (JSON)\n  -h, --help\tShow help\n", os.Args[0])
 	}
 	flag.Parse()
 
@@ -52,8 +55,8 @@ _____.___.                  _________
 		fmt.Println("Use -h for help")
 		os.Exit(1)
 	}
-	if onlyExternal && onlyInternal { // Updated variable names
-		color.Red("[ERR] Cannot use both --ext and --int flags together.\n") // Updated error message
+	if onlyExternal && onlyInternal {
+		color.Red("[ERR] Conflict: -e and -i")
 		os.Exit(1)
 	}
 
@@ -64,17 +67,28 @@ _____.___.                  _________
 	if onlyInternal {
 		color.Yellow("[INF] Filter: Internal links only")
 	}
-
-	cfg := Config{ // Use local Config struct
-		TargetURL:    u,
-		MaxDepth:     d,
-		OnlyInternal: onlyInternal, // Updated variable name
-		OnlyExternal: onlyExternal, // Updated variable name
+	if output != "" {
+		color.Blue("[INF] Output will be saved to %s", output)
 	}
 
-	c := New(cfg) // Use local New function
+	cfg := Config{
+		TargetURL:    u,
+		MaxDepth:     d,
+		OnlyInternal: onlyInternal,
+		OnlyExternal: onlyExternal,
+		OutputPath:   output,
+	}
 
+	c := New(cfg)
 	if err := c.Start(); err != nil {
-		log.Fatalf("%s %v", color.RedString("[FATAL] Crawler failed:"), err) // Updated error message
+		log.Fatalf("%s %v", color.RedString("[FATAL] Crawler failed:"), err)
+	}
+
+	if output != "" {
+		if err := c.SaveJSON(); err != nil {
+			color.Red("[ERR] Failed to save output: %v", err)
+		} else {
+			color.Green("[INF] Saved results to %s", output)
+		}
 	}
 }

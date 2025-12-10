@@ -43,7 +43,7 @@ go install
 
 ### Exemple
 
-```bash
+```text
 ~/Projets/Yg-scovery $ ./yg-scovery -u https://trainplay.fr/ -i -d 2
 
 _____.___.                  _________                                      

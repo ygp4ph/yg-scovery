@@ -1,4 +1,4 @@
-module yg-scovery
+module github.com/ygp4ph/Yg-scovery
 
 go 1.25.5
 

@@ -16,7 +16,7 @@ go install github.com/ygp4ph/Yg-scovery@v1.3.2
 
 ```bash
 # Cloner le repository
-git clone https://github.com/ygp4ph/Yg-scovery.git
+git clone https://github.com/ygp4ph/yg-scovery.git
 cd yg-scovery
 
 # Installer les dépendances

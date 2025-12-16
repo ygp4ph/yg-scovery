@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// regex pour extraire les liens
 var (
 	urlRegex  = regexp.MustCompile(`https?://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?:/[^"'\s<>` + "`" + `]*)?`)
 	pathRegex = regexp.MustCompile(`["'](\.?\.?/[^"'\s<>` + "`" + `]+)["']`)

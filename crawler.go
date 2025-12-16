@@ -12,9 +12,10 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"golang.org/x/time/rate"
 )
 
-// Config représente les paramètres de configuration du crawler.
+// Config contient les paramètres du crawler.
 type Config struct {
 	TargetURL    string
 	MaxDepth     int
@@ -30,19 +31,38 @@ type Crawler struct {
 	Visited map[string]bool
 	mu      sync.Mutex
 	Results []string
+	wg      sync.WaitGroup
 }
 
-// New crée un nouveau crawler.
+// rateLimitedTransport implémente http.RoundTripper avec rate limiting.
+type rateLimitedTransport struct {
+	limiter *rate.Limiter
+	base    http.RoundTripper
+}
+
+// RoundTrip exécute une requête HTTP avec rate limiting.
+func (t *rateLimitedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := t.limiter.Wait(req.Context()); err != nil {
+		return nil, err
+	}
+	return t.base.RoundTrip(req)
+}
+
 func New(cfg Config) *Crawler {
+	limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 10)
+
 	return &Crawler{
 		Config: cfg,
 		Client: &http.Client{
 			Timeout: 10 * time.Second,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			Transport: &rateLimitedTransport{
+				limiter: limiter,
+				base: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
 			},
 		},
-		Visited: make(map[string]bool),
+		Visited: make(map[string]bool, 1000),
 	}
 }
 
@@ -56,12 +76,17 @@ func (c *Crawler) Start() error {
 	c.mu.Lock()
 	c.Visited[norm] = true
 	c.mu.Unlock()
-	return c.crawl(norm, 0)
+
+	if err := c.crawl(norm, 0); err != nil {
+		return err
+	}
+	c.wg.Wait()
+	return nil
 }
 
-// crawl effectue la recherche.
+// crawl explore récursivement les liens.
 func (c *Crawler) crawl(rawURL string, depth int) error {
-	if depth > c.Config.MaxDepth {
+	if depth >= c.Config.MaxDepth {
 		return nil
 	}
 	parsed, err := url.Parse(rawURL)
@@ -75,6 +100,10 @@ func (c *Crawler) crawl(rawURL string, depth int) error {
 		return nil
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -94,29 +123,31 @@ func (c *Crawler) crawl(rawURL string, depth int) error {
 			continue
 		}
 		c.Visited[abs] = true
-		c.mu.Unlock()
 
 		if res.Host != parsed.Host {
 			if !c.Config.OnlyInternal {
 				fmt.Printf("[%s] %s\n", color.CyanString("EXT"), abs)
-				c.mu.Lock()
 				c.Results = append(c.Results, abs)
-				c.mu.Unlock()
 			}
+			c.mu.Unlock()
 		} else {
 			if !c.Config.OnlyExternal {
 				fmt.Printf("[%s] %s\n", color.GreenString("INT"), abs)
-				c.mu.Lock()
 				c.Results = append(c.Results, abs)
-				c.mu.Unlock()
 			}
-			c.crawl(abs, depth+1)
+			c.mu.Unlock()
+
+			c.wg.Add(1)
+			go func(url string, d int) {
+				defer c.wg.Done()
+				c.crawl(url, d+1)
+			}(abs, depth)
 		}
 	}
 	return nil
 }
 
-// SaveJSON sauvegarde les résultats dans un fichier JSON.
+// SaveJSON sauvegarde les résultats en JSON.
 func (c *Crawler) SaveJSON() error {
 	if c.Config.OutputPath == "" {
 		return nil

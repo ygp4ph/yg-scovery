@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/fatih/color"
 )
@@ -14,7 +16,6 @@ func main() {
 	var d int
 	var onlyExternal, onlyInternal, h bool
 	var output string
-	// Définition des flags et leurs valeurs par défaut
 	flag.StringVar(&u, "u", "", "")
 	flag.StringVar(&u, "url", "", "")
 	flag.IntVar(&d, "d", 3, "")
@@ -28,7 +29,6 @@ func main() {
 	flag.BoolVar(&h, "h", false, "")
 	flag.BoolVar(&h, "help", false, "")
 
-	// hehe
 	banner := func() {
 		color.Cyan(`
 _____.___.                  _________                                      
@@ -55,6 +55,13 @@ _____.___.                  _________
 	if u == "" {
 		color.Red("[ERR] -u <url> required")
 		fmt.Println("Use -h for help")
+		os.Exit(1)
+	}
+	if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+		u = "https://" + u
+	}
+	if _, err := url.Parse(u); err != nil {
+		color.Red("[ERR] Invalid URL: %v", err)
 		os.Exit(1)
 	}
 	if onlyExternal && onlyInternal {

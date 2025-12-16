@@ -10,7 +10,7 @@ Un crawler web rapide et efficace écrit en Go pour la découverte automatique d
 
 ```bash
 # Cloner le repository
-git clone <your-repo-url>
+git clone https://github.com/ygp4ph/Yg-scovery.git
 cd yg-scovery
 
 # Installer les dépendances

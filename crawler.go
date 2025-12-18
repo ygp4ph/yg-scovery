@@ -168,11 +168,20 @@ func (c *Crawler) validateLinksParallel(links []string, baseURL *url.URL) []link
 				return
 			}
 			abs := res.String()
+			isExternal := res.Host != baseURL.Host
+
+			// Optimization: Filtre avant validation réseau
+			if c.Config.OnlyInternal && isExternal {
+				return
+			}
+			if c.Config.OnlyExternal && !isExternal {
+				return
+			}
 
 			if c.validateLink(abs) {
 				results <- linkInfo{
 					url:        abs,
-					isExternal: res.Host != baseURL.Host,
+					isExternal: isExternal,
 				}
 			}
 		}(link)

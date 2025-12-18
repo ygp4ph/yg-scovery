@@ -12,24 +12,28 @@ import (
 )
 
 func main() {
-	var u string
-	var d int
-	var onlyExternal, onlyInternal, h, verbose bool
-	var output string
-	flag.StringVar(&u, "u", "", "")
-	flag.StringVar(&u, "url", "", "")
-	flag.IntVar(&d, "d", 3, "")
-	flag.IntVar(&d, "depth", 3, "")
-	flag.BoolVar(&onlyExternal, "e", false, "")
-	flag.BoolVar(&onlyExternal, "ext", false, "")
-	flag.BoolVar(&onlyInternal, "i", false, "")
-	flag.BoolVar(&onlyInternal, "int", false, "")
-	flag.StringVar(&output, "o", "", "")
-	flag.StringVar(&output, "output", "", "")
-	flag.BoolVar(&h, "h", false, "")
-	flag.BoolVar(&h, "help", false, "")
-	flag.BoolVar(&verbose, "v", false, "")
-	flag.BoolVar(&verbose, "verbose", false, "")
+	var (
+		u                          string
+		d                          int
+		onlyExternal, onlyInternal bool
+		output                     string
+		h, verbose                 bool
+	)
+
+	flag.StringVar(&u, "u", "", "Target URL")
+	flag.StringVar(&u, "url", "", "Target URL")
+	flag.IntVar(&d, "d", 3, "Max recursion depth")
+	flag.IntVar(&d, "depth", 3, "Max recursion depth")
+	flag.BoolVar(&onlyExternal, "e", false, "External links only")
+	flag.BoolVar(&onlyExternal, "ext", false, "External links only")
+	flag.BoolVar(&onlyInternal, "i", false, "Internal links only")
+	flag.BoolVar(&onlyInternal, "int", false, "Internal links only")
+	flag.StringVar(&output, "o", "", "Output file (JSON)")
+	flag.StringVar(&output, "output", "", "Output file (JSON)")
+	flag.BoolVar(&h, "h", false, "Show help")
+	flag.BoolVar(&h, "help", false, "Show help")
+	flag.BoolVar(&verbose, "v", false, "Show errors")
+	flag.BoolVar(&verbose, "verbose", false, "Show errors")
 
 	banner := func() {
 		color.Cyan(`
@@ -38,7 +42,7 @@ _____.___.                  _________
  /   |   |/ ___\   ______  \_____  \_/ ___\/  _ \  \/ // __ \_  __ <   |  |
  \____   / /_/  > /_____/  /        \  \__(  <_> )   /\  ___/|  | \/\___  |
  / ______\___  /          /_______  /\___  >____/ \_/  \___  >__|   / ____|
- \/     /_____/                   \/     \/                \/       \/      v1.3.2
+ \/     /_____/                   \/     \/                \/       \/      v1.4.1
  `)
 	}
 

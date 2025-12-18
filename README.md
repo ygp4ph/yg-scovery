@@ -45,6 +45,8 @@ go install
 | `-d` | `--depth` | Profondeur maximale de récursion | 3 |
 | `-e` | `--ext` | Afficher uniquement les liens externes | false |
 | `-i` | `--int` | Afficher uniquement les liens internes | false |
+| `-o` | `--output` | Sauvegarder les résultats en JSON | - |
+| `-v` | `--verbose` | Afficher les erreurs détaillées | false |
 | `-h` | `--help` | Afficher l'aide | - |
 
 ### Exemple
@@ -57,7 +59,7 @@ _____.___.                  _________
  /   |   |/ ___\   ______  \_____  \_/ ___\/  _ \  \/ // __ \_  __ <   |  |
  \____   / /_/  > /_____/  /        \  \__(  <_> )   /\  ___/|  | \/\___  |
  / ______\___  /          /_______  /\___  >____/ \_/  \___  >__|   / ____|
- \/     /_____/                   \/     \/                \/       \/      v1.0.0
+ \/     /_____/                   \/     \/                \/       \/      v1.4.1
  
 [INF] Scanning https://ygp4ph.me (Depth: 3)
 [INF] Filter: Internal links only

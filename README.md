@@ -9,7 +9,7 @@ Un crawler web rapide et efficace écrit en Go pour la découverte automatique d
 ### Installation rapide
 
 ```bash
-go install github.com/ygp4ph/Yg-scovery@v1.3.2
+go install github.com/ygp4ph/Yg-scovery@latest
 ```
 
 ### Compilation depuis les sources

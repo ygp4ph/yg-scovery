@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/fatih/color"
-	"golang.org/x/time/rate"
 )
 
 // Config contient les paramètres du crawler.
@@ -22,47 +22,49 @@ type Config struct {
 	OnlyInternal bool
 	OnlyExternal bool
 	OutputPath   string
+	Verbose      bool
 }
 
-// Crawler représente un crawler web.
+// Crawler représente un crawler web optimisé.
 type Crawler struct {
-	Config  Config
-	Client  *http.Client
-	Visited map[string]bool
-	mu      sync.Mutex
-	Results []string
-	wg      sync.WaitGroup
-}
-
-// rateLimitedTransport implémente http.RoundTripper avec rate limiting.
-type rateLimitedTransport struct {
-	limiter *rate.Limiter
-	base    http.RoundTripper
-}
-
-// RoundTrip exécute une requête HTTP avec rate limiting.
-func (t *rateLimitedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if err := t.limiter.Wait(req.Context()); err != nil {
-		return nil, err
-	}
-	return t.base.RoundTrip(req)
+	Config     Config
+	Client     *http.Client
+	FastClient *http.Client // Client rapide pour HEAD requests
+	Visited    sync.Map     // Map concurrente pour éviter les locks
+	Results    []string
+	resultsMu  sync.Mutex
+	wg         sync.WaitGroup
+	validCache sync.Map // Cache de validation des liens
+	semaphore  chan struct{}
 }
 
 func New(cfg Config) *Crawler {
-	limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 10)
+	workers := runtime.NumCPU() * 4
+	if workers < 16 {
+		workers = 16
+	}
+
+	// Transport optimisé avec pool de connexions
+	transport := &http.Transport{
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		MaxConnsPerHost:     20,
+		IdleConnTimeout:     30 * time.Second,
+		DisableKeepAlives:   false,
+	}
 
 	return &Crawler{
 		Config: cfg,
 		Client: &http.Client{
-			Timeout: 10 * time.Second,
-			Transport: &rateLimitedTransport{
-				limiter: limiter,
-				base: &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			},
+			Timeout:   8 * time.Second,
+			Transport: transport,
 		},
-		Visited: make(map[string]bool, 1000),
+		FastClient: &http.Client{
+			Timeout:   3 * time.Second, // Timeout court pour HEAD
+			Transport: transport,
+		},
+		semaphore: make(chan struct{}, workers),
 	}
 }
 
@@ -73,9 +75,7 @@ func (c *Crawler) Start() error {
 		return err
 	}
 	norm := parsed.String()
-	c.mu.Lock()
-	c.Visited[norm] = true
-	c.mu.Unlock()
+	c.Visited.Store(norm, true)
 
 	if err := c.crawl(norm, 0); err != nil {
 		return err
@@ -96,7 +96,9 @@ func (c *Crawler) crawl(rawURL string, depth int) error {
 
 	resp, err := c.Client.Get(rawURL)
 	if err != nil {
-		fmt.Printf("[%s] %s: %v\n", color.RedString("ERR"), rawURL, err)
+		if c.Config.Verbose {
+			fmt.Printf("[%s] %s: %v\n", color.RedString("ERR"), rawURL, err)
+		}
 		return nil
 	}
 	defer resp.Body.Close()
@@ -110,41 +112,116 @@ func (c *Crawler) crawl(rawURL string, depth int) error {
 		return err
 	}
 
-	for _, link := range Extract(string(body)) {
-		res, err := parsed.Parse(link)
-		if err != nil {
+	links := Extract(string(body))
+	validLinks := c.validateLinksParallel(links, parsed)
+
+	for _, linkInfo := range validLinks {
+		abs := linkInfo.url
+		isExternal := linkInfo.isExternal
+
+		if _, loaded := c.Visited.LoadOrStore(abs, true); loaded {
 			continue
 		}
-		abs := res.String()
 
-		c.mu.Lock()
-		if c.Visited[abs] {
-			c.mu.Unlock()
-			continue
-		}
-		c.Visited[abs] = true
-
-		if res.Host != parsed.Host {
+		if isExternal {
 			if !c.Config.OnlyInternal {
 				fmt.Printf("[%s] %s\n", color.CyanString("EXT"), abs)
-				c.Results = append(c.Results, abs)
+				c.addResult(abs)
 			}
-			c.mu.Unlock()
 		} else {
 			if !c.Config.OnlyExternal {
 				fmt.Printf("[%s] %s\n", color.GreenString("INT"), abs)
-				c.Results = append(c.Results, abs)
+				c.addResult(abs)
 			}
-			c.mu.Unlock()
 
 			c.wg.Add(1)
 			go func(url string, d int) {
 				defer c.wg.Done()
+				c.semaphore <- struct{}{}
+				defer func() { <-c.semaphore }()
 				c.crawl(url, d+1)
 			}(abs, depth)
 		}
 	}
 	return nil
+}
+
+type linkInfo struct {
+	url        string
+	isExternal bool
+}
+
+// validateLinksParallel valide plusieurs liens en parallèle.
+func (c *Crawler) validateLinksParallel(links []string, baseURL *url.URL) []linkInfo {
+	results := make(chan linkInfo, len(links))
+	var wg sync.WaitGroup
+
+	for _, link := range links {
+		wg.Add(1)
+		go func(l string) {
+			defer wg.Done()
+			c.semaphore <- struct{}{}
+			defer func() { <-c.semaphore }()
+
+			res, err := baseURL.Parse(l)
+			if err != nil {
+				return
+			}
+			abs := res.String()
+
+			if c.validateLink(abs) {
+				results <- linkInfo{
+					url:        abs,
+					isExternal: res.Host != baseURL.Host,
+				}
+			}
+		}(link)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	var validated []linkInfo
+	for li := range results {
+		validated = append(validated, li)
+	}
+	return validated
+}
+
+// validateLink vérifie qu'un lien est valide (avec cache).
+func (c *Crawler) validateLink(u string) bool {
+	// Vérifier le cache
+	if cached, ok := c.validCache.Load(u); ok {
+		return cached.(bool)
+	}
+
+	req, err := http.NewRequest("HEAD", u, nil)
+	if err != nil {
+		c.validCache.Store(u, false)
+		return false
+	}
+
+	resp, err := c.FastClient.Do(req)
+	if err != nil {
+		if c.Config.Verbose {
+			fmt.Printf("[%s] %s: %v\n", color.RedString("ERR"), u, err)
+		}
+		c.validCache.Store(u, false)
+		return false
+	}
+	defer resp.Body.Close()
+
+	valid := resp.StatusCode >= 200 && resp.StatusCode < 400
+	c.validCache.Store(u, valid)
+	return valid
+}
+
+func (c *Crawler) addResult(url string) {
+	c.resultsMu.Lock()
+	c.Results = append(c.Results, url)
+	c.resultsMu.Unlock()
 }
 
 // SaveJSON sauvegarde les résultats en JSON.

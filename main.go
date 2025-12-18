@@ -14,7 +14,7 @@ import (
 func main() {
 	var u string
 	var d int
-	var onlyExternal, onlyInternal, h bool
+	var onlyExternal, onlyInternal, h, verbose bool
 	var output string
 	flag.StringVar(&u, "u", "", "")
 	flag.StringVar(&u, "url", "", "")
@@ -28,6 +28,8 @@ func main() {
 	flag.StringVar(&output, "output", "", "")
 	flag.BoolVar(&h, "h", false, "")
 	flag.BoolVar(&h, "help", false, "")
+	flag.BoolVar(&verbose, "v", false, "")
+	flag.BoolVar(&verbose, "verbose", false, "")
 
 	banner := func() {
 		color.Cyan(`
@@ -42,7 +44,7 @@ _____.___.                  _________
 
 	flag.Usage = func() {
 		banner()
-		fmt.Fprintf(os.Stderr, "\nUSAGE: %s [flags]\n\nFLAGS:\n  -u, --url\tTarget URL\n  -d, --depth\tMax recursion (default 3)\n  -e, --ext\tExternal links only\n  -i, --int\tInternal links only\n  -o, --output\tOutput file (JSON)\n  -h, --help\tShow help\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nUSAGE: %s [flags]\n\nFLAGS:\n  -u, --url\tTarget URL\n  -d, --depth\tMax recursion (default 3)\n  -e, --ext\tExternal links only\n  -i, --int\tInternal links only\n  -o, --output\tOutput file (JSON)\n  -v, --verbose\tShow errors\n  -h, --help\tShow help\n", os.Args[0])
 	}
 	flag.Parse()
 
@@ -86,6 +88,7 @@ _____.___.                  _________
 		OnlyInternal: onlyInternal,
 		OnlyExternal: onlyExternal,
 		OutputPath:   output,
+		Verbose:      verbose,
 	}
 
 	c := New(cfg)

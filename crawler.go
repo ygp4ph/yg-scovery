@@ -174,9 +174,8 @@ func (c *Crawler) validateLinksParallel(links []string, baseURL *url.URL) []link
 			if c.Config.OnlyInternal && isExternal {
 				return
 			}
-			if c.Config.OnlyExternal && !isExternal {
-				return
-			}
+			// Fix: Ne pas filtrer les liens internes ici si OnlyExternal est actif,
+			// car on a besoin de les parcourir pour trouver des liens externes profonds.
 
 			if c.validateLink(abs) {
 				results <- linkInfo{

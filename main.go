@@ -11,7 +11,7 @@ import (
 	"github.com/fatih/color"
 )
 
-var Version = "v2.0.0"
+var Version = "v2.0.1"
 
 func main() {
 	var (
@@ -19,7 +19,7 @@ func main() {
 		d                          int
 		onlyExternal, onlyInternal bool
 		output                     string
-		h, verbose                 bool
+		h, verbose, showVersion    bool
 	)
 
 	flag.StringVar(&u, "u", "", "Target URL")
@@ -36,6 +36,7 @@ func main() {
 	flag.BoolVar(&h, "help", false, "Show help")
 	flag.BoolVar(&verbose, "v", false, "Show errors")
 	flag.BoolVar(&verbose, "verbose", false, "Show errors")
+	flag.BoolVar(&showVersion, "version", false, "Show version")
 
 	banner := func() {
 		color.Cyan(`
@@ -49,12 +50,17 @@ func main() {
 
 	flag.Usage = func() {
 		banner()
-		fmt.Fprintf(os.Stderr, "\nUSAGE: %s [flags]\n\nFLAGS:\n  -u, --url\tTarget URL\n  -d, --depth\tMax recursion (default 3)\n  -e, --ext\tExternal links only\n  -i, --int\tInternal links only\n  -o, --output\tOutput file (JSON)\n  -v, --verbose\tShow errors\n  -h, --help\tShow help\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nUSAGE: %s [flags]\n\nFLAGS:\n  -u, --url\tTarget URL\n  -d, --depth\tMax recursion (default 3)\n  -e, --ext\tExternal links only\n  -i, --int\tInternal links only\n  -o, --output\tOutput file (JSON)\n  -v, --verbose\tShow errors\n  --version\tShow version\n  -h, --help\tShow help\n", os.Args[0])
 	}
 	flag.Parse()
 
 	if h {
 		flag.Usage()
+		os.Exit(0)
+	}
+
+	if showVersion {
+		fmt.Printf("yg-scovery %s\n", Version)
 		os.Exit(0)
 	}
 

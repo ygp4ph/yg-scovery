@@ -19,13 +19,6 @@ go install github.com/ygp4ph/yg-scovery/v2@latest
 git clone https://github.com/ygp4ph/yg-scovery.git
 cd yg-scovery
 
-# Installer les dépendances
-go mod download
-
-# Compiler
-go build -o yg-scovery
-
-# Ou installer directement
 go install
 ```
 

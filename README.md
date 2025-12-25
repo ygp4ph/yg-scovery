@@ -45,6 +45,7 @@ go install
 | `-d` | `--depth` | Profondeur maximale de récursion | 3 |
 | `-e` | `--ext` | Afficher uniquement les liens externes | false |
 | `-i` | `--int` | Afficher uniquement les liens internes | false |
+| `-t` | `--tree` | Afficher l'arbre des liens internes | false |
 | `-o` | `--output` | Sauvegarder les résultats en JSON | - |
 | `-v` | `--verbose` | Afficher les erreurs détaillées | false |
 | `-h` | `--help` | Afficher l'aide | - |
@@ -58,7 +59,7 @@ go install
   / / / / __ `/_____/ ___/ ___/ __ \ | / / _ \/ ___/ / / /
  / /_/ / /_/ /_____(__  ) /__/ /_/ / |/ /  __/ /  / /_/ / 
  \__, /\__, /     /____/\___/\____/|___/\___/_/   \__, /  
-/____//____/                                     /____/   v2.0.2
+/____//____/                                     /____/   v2.1.0
  
 [INF] Scanning https://ygp4ph.me (Depth: 3)
 [INF] Filter: Internal links only

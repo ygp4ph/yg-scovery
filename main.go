@@ -11,7 +11,7 @@ import (
 	"github.com/fatih/color"
 )
 
-var Version = "v2.0.2"
+var Version = "v2.1.0"
 
 func main() {
 	var (
@@ -20,6 +20,7 @@ func main() {
 		onlyExternal, onlyInternal bool
 		output                     string
 		h, verbose, showVersion    bool
+		tree                       bool
 	)
 
 	flag.StringVar(&u, "u", "", "Target URL")
@@ -32,6 +33,8 @@ func main() {
 	flag.BoolVar(&onlyInternal, "int", false, "Internal links only")
 	flag.StringVar(&output, "o", "", "Output file (JSON)")
 	flag.StringVar(&output, "output", "", "Output file (JSON)")
+	flag.BoolVar(&tree, "t", false, "Show internal links tree")
+	flag.BoolVar(&tree, "tree", false, "Show internal links tree")
 	flag.BoolVar(&h, "h", false, "Show help")
 	flag.BoolVar(&h, "help", false, "Show help")
 	flag.BoolVar(&verbose, "v", false, "Show errors")
@@ -50,7 +53,7 @@ func main() {
 
 	flag.Usage = func() {
 		banner()
-		fmt.Fprintf(os.Stderr, "\nUSAGE: %s [flags]\n\nFLAGS:\n  -u, --url\tTarget URL\n  -d, --depth\tMax recursion (default 3)\n  -e, --ext\tExternal links only\n  -i, --int\tInternal links only\n  -o, --output\tOutput file (JSON)\n  -v, --verbose\tShow errors\n  --version\tShow version\n  -h, --help\tShow help\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nUSAGE: %s [flags]\n\nFLAGS:\n  -u, --url\tTarget URL\n  -d, --depth\tMax recursion (default 3)\n  -e, --ext\tExternal links only\n  -i, --int\tInternal links only\n  -t, --tree\tShow internal links tree\n  -o, --output\tOutput file (JSON)\n  -v, --verbose\tShow errors\n  --version\tShow version\n  -h, --help\tShow help\n", os.Args[0])
 	}
 	flag.Parse()
 
@@ -89,6 +92,9 @@ func main() {
 	if onlyInternal {
 		color.Yellow("[INF] Filter: Internal links only")
 	}
+	if tree {
+		color.Magenta("[INF] Tree view enabled (Internal links)")
+	}
 	if output != "" {
 		color.Blue("[INF] Output will be saved to %s", output)
 	}
@@ -100,11 +106,16 @@ func main() {
 		OnlyExternal: onlyExternal,
 		OutputPath:   output,
 		Verbose:      verbose,
+		ShowTree:     tree,
 	}
 
 	c := New(cfg)
 	if err := c.Start(); err != nil {
 		log.Fatalf("%s %v", color.RedString("[FATAL] Crawler failed:"), err)
+	}
+	
+	if tree {
+		c.PrintTree()
 	}
 
 	if output != "" {

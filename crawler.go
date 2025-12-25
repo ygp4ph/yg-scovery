@@ -9,13 +9,14 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/fatih/color"
 )
 
-// Config contient les paramètres du crawler.
 type Config struct {
 	TargetURL    string
 	MaxDepth     int
@@ -23,6 +24,7 @@ type Config struct {
 	OnlyExternal bool
 	OutputPath   string
 	Verbose      bool
+	ShowTree     bool
 }
 
 // Crawler représente un crawler web optimisé.
@@ -174,9 +176,6 @@ func (c *Crawler) validateLinksParallel(links []string, baseURL *url.URL) []link
 			if c.Config.OnlyInternal && isExternal {
 				return
 			}
-			// Fix: Ne pas filtrer les liens internes ici si OnlyExternal est actif,
-			// car on a besoin de les parcourir pour trouver des liens externes profonds.
-
 			if c.validateLink(abs) {
 				results <- linkInfo{
 					url:        abs,
@@ -238,13 +237,21 @@ func (c *Crawler) SaveJSON() error {
 		return nil
 	}
 	type Export struct {
-		Target  string   `json:"target"`
-		Results []string `json:"results"`
-		Count   int      `json:"count"`
+		Target  string    `json:"target"`
+		Results []string  `json:"results"`
+		Tree    *treeNode `json:"tree,omitempty"`
+		Count   int       `json:"count"`
 	}
+
+	var tree *treeNode
+	if c.Config.ShowTree {
+		tree = c.buildTree()
+	}
+
 	data := Export{
 		Target:  c.Config.TargetURL,
 		Results: c.Results,
+		Tree:    tree,
 		Count:   len(c.Results),
 	}
 	file, err := os.Create(c.Config.OutputPath)
@@ -255,4 +262,97 @@ func (c *Crawler) SaveJSON() error {
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
+}
+
+type treeNode struct {
+	Name     string               `json:"name"`
+	Children map[string]*treeNode `json:"children,omitempty"`
+}
+
+func newTreeNode(name string) *treeNode {
+	return &treeNode{
+		Name:     name,
+		Children: make(map[string]*treeNode),
+	}
+}
+
+func (c *Crawler) PrintTree() {
+	if !c.Config.ShowTree {
+		return
+	}
+	fmt.Printf("\n%s\n%s\n", color.MagentaString("=== Site Tree ==="), c.Config.TargetURL)
+
+	root := c.buildTree()
+	c.printRecursive(root, "")
+}
+
+func (c *Crawler) printRecursive(node *treeNode, prefix string) {
+	keys := make([]string, 0, len(node.Children))
+	for k := range node.Children {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for i, name := range keys {
+		isLast := i == len(keys)-1
+		connector := "├── "
+		if isLast {
+			connector = "└── "
+		}
+		fmt.Printf("%s%s%s\n", prefix, connector, name)
+
+		newPrefix := prefix + "│   "
+		if isLast {
+			newPrefix = prefix + "    "
+		}
+		c.printRecursive(node.Children[name], newPrefix)
+	}
+}
+
+func (c *Crawler) buildTree() *treeNode {
+	rootURL, _ := url.Parse(c.Config.TargetURL)
+	root := newTreeNode("/")
+
+	urls := append([]string{c.Config.TargetURL}, c.Results...)
+	for _, uStr := range urls {
+		u, err := url.Parse(uStr)
+		if err != nil || u.Host != rootURL.Host {
+			continue
+		}
+
+		path := u.Path
+		if path == "" {
+			path = "/"
+		}
+
+		suffix := ""
+		if u.RawQuery != "" {
+			suffix = "?" + u.RawQuery
+		}
+
+		parts := strings.Split(path, "/")
+		current := root
+
+		for i, part := range parts {
+			if part == "" {
+				continue
+			}
+			name := part
+			if i == len(parts)-1 {
+				name += suffix
+			}
+			if _, exists := current.Children[name]; !exists {
+				current.Children[name] = newTreeNode(name)
+			}
+			current = current.Children[name]
+		}
+
+		if path == "/" && suffix != "" {
+			name := "?" + u.RawQuery
+			if _, exists := root.Children[name]; !exists {
+				root.Children[name] = newTreeNode(name)
+			}
+		}
+	}
+	return root
 }

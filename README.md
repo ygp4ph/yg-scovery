@@ -1,12 +1,18 @@
 # Yg-Scovery
 
-
 Un crawler web rapide et efficace écrit en Go pour la découverte automatique de liens et l'exploration de sites web.
-
 
 ## Installation
 
 ### Installation rapide
+
+```bash
+go install github.com/ygp4ph/yg-scovery/v2@latest
+```
+
+### Mise à jour
+
+Pour mettre à jour l'outil vers la dernière version, relancez simplement la commande d'installation :
 
 ```bash
 go install github.com/ygp4ph/yg-scovery/v2@latest
@@ -32,16 +38,16 @@ go install
 
 ### Options disponibles
 
-| Flag | Alias | Description | Défaut |
-|------|-------|-------------|--------|
-| `-u` | `--url` | URL cible à crawler (requis) | - |
-| `-d` | `--depth` | Profondeur maximale de récursion | 3 |
-| `-e` | `--ext` | Afficher uniquement les liens externes | false |
-| `-i` | `--int` | Afficher uniquement les liens internes | false |
-| `-t` | `--tree` | Afficher l'arbre des liens internes | false |
-| `-o` | `--output` | Sauvegarder les résultats en JSON | - |
-| `-v` | `--verbose` | Afficher les erreurs détaillées | false |
-| `-h` | `--help` | Afficher l'aide | - |
+| Flag | Alias       | Description                            | Défaut |
+| ---- | ----------- | -------------------------------------- | ------ |
+| `-u` | `--url`     | URL cible à crawler (requis)           | -      |
+| `-d` | `--depth`   | Profondeur maximale de récursion       | 3      |
+| `-e` | `--ext`     | Afficher uniquement les liens externes | false  |
+| `-i` | `--int`     | Afficher uniquement les liens internes | false  |
+| `-t` | `--tree`    | Afficher l'arbre des liens internes    | false  |
+| `-o` | `--output`  | Sauvegarder les résultats en JSON      | -      |
+| `-v` | `--verbose` | Afficher les erreurs détaillées        | false  |
+| `-h` | `--help`    | Afficher l'aide                        | -      |
 
 ### Exemple
 

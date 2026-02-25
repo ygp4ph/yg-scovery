@@ -39,6 +39,7 @@ type Crawler struct {
 	sem   chan struct{}
 }
 
+// New creates and initializes a new Crawler instance with the specified configuration.
 func New(cfg Config) *Crawler {
 	return &Crawler{
 		cfg: cfg,
@@ -55,6 +56,7 @@ func New(cfg Config) *Crawler {
 	}
 }
 
+// Start initiates the crawling process. It performs an initial connection check, scans for robots.txt and sitemap.xml, and begins recursive crawling.
 func (c *Crawler) Start() error {
 	base, err := url.Parse(c.cfg.TargetURL)
 	if err != nil {
@@ -93,6 +95,7 @@ func (c *Crawler) Start() error {
 	return nil
 }
 
+// checkConn verifies if the specified URL is reachable using a HEAD or GET request.
 func (c *Crawler) checkConn(u string) error {
 	if err := c.req(u, "HEAD", 30*time.Second); err != nil && !strings.Contains(err.Error(), "aborted") {
 		return c.req(u, "GET", 30*time.Second)
@@ -102,6 +105,8 @@ func (c *Crawler) checkConn(u string) error {
 	return nil
 }
 
+// req performs an HTTP request with the given method and timeout, returning an error if the request fails or returns an error status code.
+// It can optionally skip TLS certificate verification if the user agrees.
 func (c *Crawler) req(u, method string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -137,6 +142,7 @@ func (c *Crawler) req(u, method string, timeout time.Duration) error {
 	return nil
 }
 
+// fetch retrieves the content of the given URL. Returns the response body and a boolean indicating success.
 func (c *Crawler) fetch(u string) (string, bool) {
 	resp, err := c.cli.Get(u)
 	if err != nil || resp.StatusCode != 200 {
@@ -147,6 +153,7 @@ func (c *Crawler) fetch(u string) (string, bool) {
 	return string(b), true
 }
 
+// crawl recursively fetches and processes a URL up to the max depth configured limit.
 func (c *Crawler) crawl(u string, depth int) {
 	if depth >= c.cfg.MaxDepth {
 		return
@@ -162,6 +169,7 @@ func (c *Crawler) crawl(u string, depth int) {
 	}
 }
 
+// enqueue processes a list of found links, validates them concurrently, and adds valid ones to the crawl queue.
 func (c *Crawler) enqueue(links []string, base *url.URL, nextDepth int) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -239,6 +247,7 @@ func (c *Crawler) enqueue(links []string, base *url.URL, nextDepth int) {
 
 type treeNode map[string]treeNode
 
+// buildTree constructs a hierarchical tree representation of all validated URLs.
 func (c *Crawler) buildTree() treeNode {
 	root, base := treeNode{}, c.cfg.TargetURL
 	uBase, _ := url.Parse(base)
@@ -275,6 +284,7 @@ func (c *Crawler) buildTree() treeNode {
 	return root
 }
 
+// PrintTree outputs the URL hierarchy to the standard output in a tree structure.
 func (c *Crawler) PrintTree() {
 	if !c.cfg.ShowTree {
 		return
@@ -299,6 +309,7 @@ func (c *Crawler) PrintTree() {
 	printNode(c.buildTree(), "")
 }
 
+// SaveJSON exports the crawling results, including the URL tree if enabled, into a JSON file format.
 func (c *Crawler) SaveJSON() error {
 	var t treeNode
 	if c.cfg.ShowTree {

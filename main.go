@@ -13,6 +13,7 @@ import (
 
 const Version = "v2.3.1"
 
+// main is the entry point of the GolDigger application, parsing CLI flags and starting the crawler.
 func main() {
 	var c Config
 	var h, version bool
